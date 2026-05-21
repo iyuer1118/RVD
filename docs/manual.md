@@ -127,10 +127,34 @@ user_data/
 
 > **幽灵文档**：文档列表中可能出现 `pdf_exists: false` 的条目，表示 segments 存在但原始 PDF 已丢失（可能是 reference/ 目录被清理）。此类文档仍可检索文本片段，但无法执行精读或查看原文。
 
+
+### 4.4.1 Agent 后端依赖
+
+基础查询、知识库管理和普通 RAG 问答不需要安装 Claude Code/Codex/OpenCode。以下高级功能需要外部 agent：
+
+- Agent 模式
+- 精读报告 Deep Read
+- 文档修改 DocMod
+- 论文撰写中的高级章节生成/修改流程
+
+默认后端为 Claude Code：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude auth login
+export RAG_AGENT_BACKEND=claude
+export CLAUDE_BIN=$(command -v claude)
+```
+
+如需使用 Codex/OpenCode：
+
+- 外部编排模式：直接让 Codex/OpenCode 调用 `agent_tools/*.py`。
+- Adapter 模式：实现包装脚本，将 Codex/OpenCode 输出转换为 Claude Code `stream-json` 兼容事件，并设置 `RAG_AGENT_ADAPTER`/`CLAUDE_BIN`。
+
 ### 4.5 Agent 模式
 
 1. 左侧导航 → **🤖 Agent 模式**
-2. Agent 是基于 Claude Code 的自主研究助手
+2. Agent 是外部 coding/research agent 驱动的自主研究助手；当前默认实现兼容 Claude Code，也可通过 adapter 接入 Codex/OpenCode
 3. 可用工具（Agent 自主决定何时调用）：
    - `rag_search`：纯检索（快速，不调用 LLM）
    - `rag_ask`：RAG 问答（检索 + 生成）
@@ -141,12 +165,12 @@ user_data/
 4. Agent 会话支持新建、删除、续聊
 5. 首次消息会自动注入 `[当前知识库: <kb>]` 上下文
 
-> **注意**：Agent 模式依赖 Claude Code CLI（`claude`）。如果 Claude Code 不可用，系统会自动 fallback 到 DeepSeek。SSE 流式输出，需要通过 `/api/agent/chat/<session_id>` 端点获取实时响应。
+> **注意**：Agent 模式依赖外部 agent CLI。当前后端默认调用 `CLAUDE_BIN` 并解析 Claude Code `stream-json` 输出；Codex/OpenCode 可通过外部调用 `agent_tools` 或兼容 adapter 接入。SSE 流式输出通过 `/api/agent/chat/<session_id>` 获取。
 
 ### 4.6 精读报告（Deep Read）
 
 1. 在管理知识库 → 文档列表中，点击文档的"精读"按钮
-2. 系统从 PDF 提取全文（最多 30 页），然后通过 Claude Code 生成精读报告
+2. 系统从 PDF 提取全文（最多 30 页），然后通过配置的外部 agent（默认 Claude Code）生成精读报告
 3. 报告涵盖 7 个方面：
    - 研究问题
    - 现有方法的局限性
@@ -158,7 +182,7 @@ user_data/
 4. 生成过程支持 SSE 实时流式输出和 status 轮询两种模式
 5. 报告生成后持久化存储，可直接查看或通过 API 导出
 
-> **Fallback 机制**：如果 Claude Code CLI 执行失败（退出码非 0），系统会自动切换到 DeepSeek API 作为后备，使用内联文本方式生成报告（最多 60000 字符输入）。
+> **Fallback 机制**：如果默认 agent CLI 执行失败（退出码非 0），部分精读路径会尝试切换到配置的 DeepSeek/OpenAI-compatible API 作为后备，使用内联文本方式生成报告（最多 60000 字符输入）。
 
 ### 4.7 文档修改（DocMod）
 
@@ -166,11 +190,11 @@ user_data/
 2. 上传文档（支持 `md`/`pdf`/`doc`/`docx`）
 3. 系统自动解析文档内容为 Markdown
 4. 通过对话方式提出修改需求
-5. AI（Claude Code）执行修改，将修改后文档放在 `<MODIFIED_DOC>` 标签中
+5. AI agent（默认 Claude Code；可通过 adapter 接入 Codex/OpenCode）执行修改，将修改后文档放在 `<MODIFIED_DOC>` 标签中
 6. 修改后的文档自动保存，支持继续迭代修改
 7. 导出支持 `md` 和 `pdf` 格式
 
-> **DocMod 内部机制**：文档修改通过 Claude Code 子进程实现，内部复用 Agent 的 SSE 流式输出通道。每次对话都会把当前文档内容（优先修改后版本）作为上下文传递给 Agent。
+> **DocMod 内部机制**：文档修改通过外部 agent 子进程实现，当前开源实现默认兼容 Claude Code，并复用 Agent 的 SSE 流式输出通道。每次对话都会把当前文档内容（优先修改后版本）作为上下文传递给 Agent。若使用 Codex/OpenCode，建议通过 adapter 输出 Claude-compatible stream-json。
 
 ### 4.8 论文撰写（Paper Writing）
 

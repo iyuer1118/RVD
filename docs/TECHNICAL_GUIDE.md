@@ -13,6 +13,7 @@ Academic RAG 是一个面向学术论文、技术报告、课程资料和研究�
 - **多知识库**：不同研究方向可建立不同 KB，例如 `papers`、`biology`、`economics`、`course-notes`。
 - **多格式支持**：支持 PDF、TXT、Markdown 等文档格式。
 - **Web + Agent Tools**：既可用浏览器交互，也可由命令行/Agent 自动调用。
+- **可选 Agent 后端**：高级 Agent 模式、论文精读、DocMod 文档修改和论文撰写可接入 Claude Code；Codex/OpenCode 可通过外部 orchestration 或兼容 adapter 接入。
 - **可扩展模型后端**：支持 Ollama，也可配置 DeepSeek/OpenAI 兼容 API。
 
 ---
@@ -101,6 +102,35 @@ python rag_web_server.py
 | 经济学 | `economics` | “这些论文采用了哪些因果识别策略？” |
 | 课程资料 | `course-notes` | “请根据讲义解释这个概念并给出例子。” |
 | 软件工程 | `software-engineering` | “这些论文如何评估软件质量？” |
+
+## Agent 后端与高级工作流
+
+基础检索和 RAG 问答不依赖 coding agent：`/api/search`、`/api/ask`、`/api/v1/chat/completions` 以及 `agent_tools/*.py` 都可以只依赖知识库、embedding 和配置好的 LLM 后端运行。
+
+高级工作流需要外部 agent CLI：
+
+| 功能 | 是否需要 agent | 说明 |
+|---|---:|---|
+| Web Agent 模式 | 是 | 后端启动 agent 子进程并通过 SSE 转发输出。 |
+| Deep Read | 默认需要 | 使用 agent 处理长文本并生成结构化报告，部分路径可 fallback 到普通 LLM。 |
+| DocMod 文档修改 | 是 | 需要 agent 读取当前文档、执行迭代编辑，并返回修改后内容。 |
+| 论文撰写 | 高级流程需要 | 用 agent 进行多轮规划、章节草稿和修改。 |
+
+当前开源实现主要兼容 Claude Code：
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude auth login
+export RAG_AGENT_BACKEND=claude
+export CLAUDE_BIN=$(command -v claude)
+```
+
+Codex/OpenCode 支持两种方式：
+
+1. 外部编排：让 Codex/OpenCode 直接调用 `agent_tools/rag_search.py`、`agent_tools/rag_ask.py` 等脚本。
+2. Adapter：实现一个包装脚本，把 Codex/OpenCode 输出转换成 Claude Code `stream-json` 兼容格式，然后设置 `CLAUDE_BIN` 或 `RAG_AGENT_ADAPTER` 指向该脚本。
+
+相关环境变量：`RAG_AGENT_BACKEND`、`CLAUDE_BIN`、`CODEX_BIN`、`OPENCODE_BIN`、`RAG_AGENT_ADAPTER`。
 
 ## Agent Tools
 

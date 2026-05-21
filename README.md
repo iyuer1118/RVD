@@ -29,7 +29,9 @@ The default example knowledge base is named `papers`, but you can create any dom
 - **Deep reading reports**: generate structured reading notes for individual papers or reports.
 - **OpenAI-compatible endpoint**: integrate with OpenAI SDK, LangChain, LlamaIndex, and agent frameworks.
 - **Agent tools**: command-line scripts for search, ask, list KBs, list docs, document detail, and deep reading.
+- **Agent-powered workflows**: optional autonomous-agent backend for Agent Mode, deep reading, document modification, and paper-writing workflows.
 - **Model backend flexibility**: Ollama for local embedding/chat; DeepSeek or other OpenAI-compatible APIs are optional.
+- **Customizable coding-agent backend**: use Claude Code by default, or adapt the launch command for Codex/OpenCode.
 
 ## System Architecture
 
@@ -102,8 +104,34 @@ Recommended for local RAG:
 Optional:
 
 - DeepSeek or any OpenAI-compatible Chat Completions API
-- LibreOffice for future document conversion workflows
+- LibreOffice for DOC/DOCX/PDF conversion in document-modification workflows
+- `pdftotext` from poppler-utils for PDF text extraction in deep-reading workflows
 - CUDA GPU for faster local inference through Ollama
+
+Optional autonomous-agent backend:
+
+Academic RAG has two layers of functionality:
+
+1. **Core RAG**: document upload, indexing, vector search, RAG Q&A, OpenAI-compatible chat, and the `agent_tools/` CLI wrappers. These do **not** require Claude Code, Codex, or OpenCode.
+2. **Agent-powered workflows**: Web Agent Mode, Deep Read generation, DocMod document editing, and paper-writing assistance. These need an external coding/research agent CLI because they launch a subprocess that can read/write files and orchestrate RAG tools.
+
+The current open-source backend is implemented around the Claude Code streaming JSON protocol. You can use Claude Code directly, or provide a compatible wrapper around Codex/OpenCode.
+
+| Backend | Install | Auth | Recommended use | Notes |
+|---|---|---|---|---|
+| Claude Code | `npm install -g @anthropic-ai/claude-code` | `claude auth login` or `ANTHROPIC_API_KEY` | Default; best-supported for Agent Mode/DocMod/Deep Read | Supports `claude -p --output-format stream-json`. |
+| Codex CLI | `npm install -g @openai/codex` | `codex login` or `OPENAI_API_KEY` | Optional alternative for autonomous editing | Requires an adapter/wrapper if used with the existing SSE parser. |
+| OpenCode | `npm i -g opencode-ai@latest` or Homebrew | `opencode auth login` or provider API keys | Optional provider-agnostic agent backend | Requires an adapter/wrapper if used with the existing SSE parser. |
+
+For the default Claude Code setup:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude auth login
+claude --version
+```
+
+For Codex/OpenCode, either call them outside the Web Agent Mode using `agent_tools/`, or create a small wrapper script that translates their output into the Claude-style stream JSON expected by `rag_web_server.py`.
 
 ## Quick Start
 
@@ -134,6 +162,10 @@ export RAG_AUTH_CODE='your-strong-auth-code'
 export RAG_JWT_SECRET='your-long-random-secret'
 export RAG_HOST=0.0.0.0
 export RAG_PORT=10663
+
+# Optional: agent backend for Agent Mode / Deep Read / DocMod
+export RAG_AGENT_BACKEND=claude
+export CLAUDE_BIN=$(command -v claude)
 ```
 
 If you use a cloud LLM provider:
@@ -233,6 +265,14 @@ For production-like deployments, put the server behind a reverse proxy, enable H
 | `DEEPSEEK_API_KEY` | Optional cloud model API key | empty by default |
 | `DEEPSEEK_BASE_URL` | OpenAI-compatible base URL | `https://api.deepseek.com/v1` |
 | `DEEPSEEK_MODEL` | Chat model name | `deepseek-chat` |
+| `RAG_AGENT_BACKEND` | Agent backend label for documentation/deployment | `claude` |
+| `CLAUDE_BIN` | Executable used by current Web Agent/DocMod implementation | `/usr/local/nodejs/bin/claude` or `$(which claude)` |
+| `CODEX_BIN` | Optional Codex executable path for custom adapters | `$(which codex)` |
+| `OPENCODE_BIN` | Optional OpenCode executable path for custom adapters | `$(which opencode)` |
+| `RAG_AGENT_ADAPTER` | Optional wrapper script that normalizes Codex/OpenCode output | `./scripts/agent_adapter.py` |
+| `ANTHROPIC_API_KEY` | Optional Claude Code API-key auth | empty by default |
+| `OPENAI_API_KEY` | Optional Codex/OpenAI-compatible auth | empty by default |
+| `OPENROUTER_API_KEY` | Optional OpenCode/OpenRouter auth | empty by default |
 
 See `.env.example` for a full template.
 
@@ -322,6 +362,74 @@ print(response.choices[0].message.content)
 | `/api/documents/<kb>` | GET | List documents in a KB |
 | `/api/doc-detail/<kb>/<source>` | GET | Get document details |
 | `/api/deep-read` | POST | Generate or read a deep-reading report |
+
+
+## Agent Backend Configuration
+
+The ordinary search and RAG endpoints work without an autonomous coding agent. However, several advanced workflows intentionally rely on an external agent process:
+
+| Workflow | Needs external agent? | Why |
+|---|---:|---|
+| `/api/search` pure retrieval | No | Uses local embeddings only. |
+| `/api/ask` RAG Q&A | No | Uses retrieval + configured LLM API. |
+| `agent_tools/*.py` CLI wrappers | No | They are HTTP clients for the RAG backend. |
+| Web **Agent Mode** | Yes | Spawns an agent subprocess and streams tool-use events. |
+| **Deep Read** report generation | Yes by default | Uses an agent to process long paper text; can fall back to configured LLM in some paths. |
+| **DocMod** document modification | Yes | Requires an agent capable of iterative document editing and returning modified text. |
+| Paper-writing assistant | Yes for advanced flows | Uses agent-style iterative writing/editing. |
+
+### Default: Claude Code
+
+The released server currently calls `CLAUDE_BIN` in several places and parses Claude Code `stream-json` events. This is the most complete backend today.
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude auth login
+export RAG_AGENT_BACKEND=claude
+export CLAUDE_BIN=$(command -v claude)
+```
+
+Recommended smoke test:
+
+```bash
+claude -p 'Respond with exactly: ACADEMIC_RAG_AGENT_OK' \
+  --output-format stream-json \
+  --max-turns 1
+```
+
+### Optional: Codex or OpenCode
+
+Codex and OpenCode are useful alternatives, but their CLI output and session semantics differ from Claude Code. The current Web SSE parser expects Claude-style `stream-json`, so there are two practical integration modes:
+
+1. **External orchestration mode**: run Codex/OpenCode outside the Web Agent Mode and let them call `agent_tools/rag_search.py`, `agent_tools/rag_ask.py`, etc. This works immediately.
+2. **Adapter mode**: set `RAG_AGENT_ADAPTER`/`CLAUDE_BIN` to a wrapper script that accepts the same arguments used by the server and emits Claude-compatible stream JSON lines.
+
+Example external orchestration with Codex:
+
+```bash
+export RAG_API_BASE=http://localhost:10663
+export RAG_TOKEN="$RAG_AUTH_CODE"
+codex exec 'Use agent_tools/rag_search.py and agent_tools/rag_ask.py to summarize the papers knowledge base.'
+```
+
+Example external orchestration with OpenCode:
+
+```bash
+export RAG_API_BASE=http://localhost:10663
+export RAG_TOKEN="$RAG_AUTH_CODE"
+opencode run 'Use the Academic RAG agent_tools to compare methods across the papers knowledge base.'
+```
+
+Example adapter deployment:
+
+```bash
+export RAG_AGENT_BACKEND=opencode
+export OPENCODE_BIN=$(command -v opencode)
+export RAG_AGENT_ADAPTER=/opt/academic-rag/scripts/opencode_stream_adapter.py
+export CLAUDE_BIN="$RAG_AGENT_ADAPTER"   # current server entry point
+```
+
+> Roadmap note: a future version can make the backend selection first-class in code (`RAG_AGENT_BACKEND=claude|codex|opencode`) instead of relying on a Claude-compatible adapter.
 
 ## Agent Tools
 
