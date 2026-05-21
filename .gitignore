@@ -1,0 +1,43 @@
+# Secrets/config
+.env
+.env.*
+!.env.example
+
+# Runtime/user data
+uploads/
+user_data/
+chat_sessions/
+deep_reads/
+agent_sessions/
+docmod/
+usage_stats.json
+users.json
+logs/
+*.log
+
+# Knowledge-base entities and private papers
+knowledge_bases/**/embeddings.json
+knowledge_bases/**/segments.json
+knowledge_bases/**/doc_details_cache.json
+knowledge_bases/**/keyword_recalibration_progress.json
+reference/*.pdf
+reference/**/*.pdf
+papers/*.pdf
+papers/**/*.pdf
+
+# Caches/temp
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+temp/
+*.bak
+*.bak*
+
+# Environments/build
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
