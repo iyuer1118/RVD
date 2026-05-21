@@ -1,105 +1,197 @@
-# Academic RAG 开源版
+# Academic RAG
 
-Academic RAG 是一个面向学术论文、技术报告和研究资料的本地知识库检索与问答 Web 系统。它支持 PDF/TXT/Markdown 文档导入、文本分段、向量检索、RAG 问答、文档浏览、精读报告和命令行 agent tools，适用于计算机科学、医学、社会科学、经济学、教育学等多种研究场景。
+Academic RAG is a local-first, research-oriented Retrieval-Augmented Generation (RAG) system for papers, technical reports, lecture notes, and lab documents. It provides a Web UI, document ingestion, vector search, RAG question answering, deep-reading reports, OpenAI-compatible APIs, and agent-friendly command-line tools.
 
-> 本 `release/` 目录是清洗后的开源发布包，不包含真实 API Key、认证码、用户数据、日志、上传文件、论文 PDF 或知识库实体（如 embeddings/segments/cache）。本项目开源发布包采用 Apache License 2.0，详见 `LICENSE`。
+> This repository is a cleaned open-source release. It does **not** include real API keys, auth codes, user data, logs, uploaded files, copyrighted PDFs, or generated knowledge-base artifacts such as `embeddings.json`, `segments.json`, or caches. The project is released under Apache License 2.0.
 
-## 项目定位
+## Why Academic RAG?
 
-Academic RAG 的目标是提供一个**学术友好、可本地部署、可扩展到多学科的 RAG 系统**，而不是某个单一领域的专用工具。你可以用它构建：
+Most researchers do not only need a chatbot. They need a system that can:
 
-- 论文阅读和文献综述知识库
-- 课程资料、教材和讲义知识库
-- 实验室内部技术报告知识库
-- 跨学科研究资料库
-- 软件工程、医学、生物信息、社会科学、经济学等领域知识库
+- organize many PDFs and notes into reusable knowledge bases;
+- answer questions with source traces;
+- support literature review, comparison, and research-gap discovery;
+- run locally when documents are private or unpublished;
+- expose APIs and command-line tools so agents can query the same knowledge base.
 
-默认示例知识库名称为 `papers`。如需面向某个领域，可以自行创建 `biology`、`economics`、`security`、`course-notes` 等知识库。
+Academic RAG is designed for these workflows. It is **not limited to any single field**. You can use it for computer science, medicine, biology, economics, social science, education, course notes, lab reports, or internal technical documents.
 
-## 功能列表
+The default example knowledge base is named `papers`, but you can create any domain-specific KB such as `biology`, `clinical`, `economics`, `software-engineering`, or `course-notes`.
 
-- Flask Web 后端与 `static/index.html` 前端
-- 多知识库浏览、文档列表、片段检索、RAG 问答
-- Ollama 本地模型调用，DeepSeek/OpenAI 兼容 Chat API 可选
-- PDF/TXT/Markdown 文档导入与知识库重建脚本
-- 嵌入向量生成脚本（Ollama `/api/embed`）
-- Agent tools：搜索、问答、列 KB、列文档、文档详情、精读报告
-- 辅助脚本：重复文档分析、关键词重校准
+## Features
 
-## Release 内容说明
+- **Local-first academic knowledge base**: keep papers and internal documents on your own machine.
+- **Multi-format ingestion**: PDF, TXT, and Markdown documents.
+- **Knowledge-base builder**: create `metadata.json`, `segments.json`, and `embeddings.json` from your document folder.
+- **Vector search**: search document fragments without calling an LLM.
+- **RAG Q&A**: retrieve relevant fragments and generate grounded answers.
+- **Document browsing**: list knowledge bases, list documents, inspect document details.
+- **Deep reading reports**: generate structured reading notes for individual papers or reports.
+- **OpenAI-compatible endpoint**: integrate with OpenAI SDK, LangChain, LlamaIndex, and agent frameworks.
+- **Agent tools**: command-line scripts for search, ask, list KBs, list docs, document detail, and deep reading.
+- **Model backend flexibility**: Ollama for local embedding/chat; DeepSeek or other OpenAI-compatible APIs are optional.
+
+## System Architecture
 
 ```text
-rag_web_server.py              # 清洗后的 Web 后端
-static/index.html              # 前端页面
-agent_tools/*.py               # CLI/Agent 工具
-rebuild_kb.py                  # 从文档重建 segments/metadata
-gen_embeddings.py              # 生成 embeddings
-analyze_duplicates.py          # 分析 segments 中重复 source
-scripts/keyword_recalibration.py
-README.md .env.example .gitignore requirements.txt
-examples/ data/ knowledge_bases/ # 空占位目录/示例说明
+┌─────────────────────────────────────────────────────────────┐
+│                       Academic RAG                         │
+├─────────────────────────────────────────────────────────────┤
+│  Documents                                                   │
+│  PDF / TXT / Markdown / reports / lecture notes              │
+│                         │                                   │
+│                         ▼                                   │
+│  Text extraction + chunking ──▶ metadata ──▶ embeddings       │
+│                         │                                   │
+│                         ▼                                   │
+│  knowledge_bases/<KB>/                                      │
+│    ├── metadata.json                                        │
+│    ├── segments.json      # generated; do not commit         │
+│    └── embeddings.json    # generated; do not commit         │
+│                         │                                   │
+│                         ▼                                   │
+│  Search API / RAG API / OpenAI-compatible Chat API           │
+│                         │                                   │
+│                         ▼                                   │
+│  Web UI / Agent tools / external research workflows          │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## 系统依赖
+## Repository Layout
 
-- Python 3.10+（建议 3.11）
-- 可选：Ollama（本地 embedding/chat，例如 `bge-m3`, `mistral-nemo`）
-- 可选：DeepSeek 或其他 OpenAI 兼容 Chat Completions API
-- 可选：LibreOffice（如需在扩展功能中转换 doc/docx/pdf）
+```text
+.
+├── rag_web_server.py                  # Flask Web backend and API server
+├── static/index.html                  # Web UI
+├── agent_tools/                       # CLI/agent wrappers
+│   ├── rag_search.py
+│   ├── rag_ask.py
+│   ├── rag_list_kbs.py
+│   ├── rag_list_docs.py
+│   ├── rag_doc_detail.py
+│   └── rag_deep_read.py
+├── rebuild_kb.py                      # Build metadata/segments from documents
+├── gen_embeddings.py                  # Generate embeddings through Ollama
+├── analyze_duplicates.py              # Inspect duplicate sources in segments
+├── scripts/keyword_recalibration.py   # Optional keyword/tag maintenance helper
+├── docs/
+│   ├── TECHNICAL_GUIDE.md             # Architecture and technical notes
+│   ├── backend_api.md                 # API reference
+│   └── manual.md                      # Longer user manual
+├── examples/sample_kb/                # Example instructions, no copyrighted data
+├── knowledge_bases/.gitkeep           # Generated KBs live here locally
+├── data/.gitkeep
+├── .env.example
+├── requirements.txt
+└── LICENSE
+```
 
-## 安装 Python 依赖
+## Requirements
+
+Required:
+
+- Python 3.10+，recommended: Python 3.11
+- pip / venv
+
+Recommended for local RAG:
+
+- [Ollama](https://ollama.com/) for local embeddings and optional local chat
+- Embedding model: `bge-m3`
+- Chat model example: `mistral-nemo`
+
+Optional:
+
+- DeepSeek or any OpenAI-compatible Chat Completions API
+- LibreOffice for future document conversion workflows
+- CUDA GPU for faster local inference through Ollama
+
+## Quick Start
+
+### 1. Clone and install dependencies
 
 ```bash
-cd release
+git clone https://github.com/iyuer1118/RVD.git academic-rag
+cd academic-rag
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```
 
-## 配置环境变量
+### 2. Configure environment variables
 
 ```bash
 cp .env.example .env
-# 编辑 .env，至少修改 RAG_AUTH_CODE 和 RAG_JWT_SECRET；如使用云模型，填写 DEEPSEEK_API_KEY
 ```
 
-示例：
+Edit `.env` or export variables in your shell. At minimum, set strong auth values before exposing the service:
 
 ```bash
 export RAG_BASE_DIR=$(pwd)
 export RAG_KB_NAME=papers
 export RAG_AUTH_CODE='your-strong-auth-code'
 export RAG_JWT_SECRET='your-long-random-secret'
-export DEEPSEEK_API_KEY='your-api-key'
+export RAG_HOST=0.0.0.0
+export RAG_PORT=10663
 ```
 
-> `rag_web_server.py` 不会自动读取 `.env` 文件；可用 shell `export`、direnv、systemd EnvironmentFile，或自行安装/启用 python-dotenv。
-
-## 初始化/构建学术知识库数据库
-
-1. 创建知识库和文档目录。这里使用通用学术知识库名 `papers`，你也可以换成 `biology`、`economics`、`security`、`course-notes` 等：
+If you use a cloud LLM provider:
 
 ```bash
-mkdir -p knowledge_bases/papers reference
+export DEEPSEEK_API_KEY='your-api-key'
+export DEEPSEEK_BASE_URL='https://api.deepseek.com/v1'
+export DEEPSEEK_MODEL='deepseek-chat'
 ```
 
-2. 放入你有权使用的 PDF/TXT/Markdown 文档到 `reference/`（或任意目录）。不要提交未获授权的论文 PDF 或内部资料。
+> `rag_web_server.py` does not automatically load `.env` files. Use shell `export`, direnv, systemd `EnvironmentFile`, Docker env files, or add your own `python-dotenv` loader.
 
-3. 重建文本片段和元数据：
+### 3. Install and start Ollama for embeddings
+
+```bash
+ollama pull bge-m3
+# Optional local chat model
+ollama pull mistral-nemo
+```
+
+Make sure Ollama is running, usually at:
+
+```text
+http://localhost:11434
+```
+
+### 4. Build a knowledge base from your documents
+
+Create a document folder and a KB folder:
+
+```bash
+mkdir -p reference knowledge_bases/papers
+```
+
+Put documents you are allowed to use into `reference/`:
+
+```text
+reference/
+├── paper-a.pdf
+├── paper-b.md
+└── lecture-notes.txt
+```
+
+Generate text segments and metadata:
 
 ```bash
 python rebuild_kb.py reference knowledge_bases/papers
 ```
 
-4. 确保 Ollama 已运行并已拉取 embedding 模型（示例）：
+Generate embeddings:
 
 ```bash
-ollama pull bge-m3
-python gen_embeddings.py knowledge_bases/papers/segments.json knowledge_bases/papers/embeddings.json
+python gen_embeddings.py \
+  knowledge_bases/papers/segments.json \
+  knowledge_bases/papers/embeddings.json
 ```
 
-5. 验证生成文件：
+Verify that the generated database files exist:
 
 ```bash
 test -f knowledge_bases/papers/metadata.json
@@ -107,9 +199,7 @@ test -f knowledge_bases/papers/segments.json
 test -f knowledge_bases/papers/embeddings.json
 ```
 
-脚本参数较轻量，如需自定义分段、模型或元数据字段，请根据脚本源码/help 调整。
-
-## 启动服务
+### 5. Start the Web server
 
 ```bash
 export RAG_BASE_DIR=$(pwd)
@@ -119,13 +209,123 @@ export RAG_PORT=10663
 python rag_web_server.py
 ```
 
-访问：<http://localhost:10663>
+Open:
 
-首次用户系统会创建默认 admin（请上线前修改/替换认证方案和默认密码）。
+```text
+http://localhost:10663
+```
 
-## Agent tools 使用
+For production-like deployments, put the server behind a reverse proxy, enable HTTPS, and use strong secrets.
 
-设置 API 地址和 token/auth code：
+## Environment Variables
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `RAG_BASE_DIR` | Base directory for data and KB paths | `$(pwd)` |
+| `RAG_KB_NAME` | Default knowledge base name | `papers` |
+| `RAG_HOST` | Server bind address | `0.0.0.0` |
+| `RAG_PORT` | Server port | `10663` |
+| `RAG_AUTH_CODE` | Registration/security code and legacy bearer token | `change-this` |
+| `RAG_JWT_SECRET` | JWT signing secret | `change-this-too` |
+| `OLLAMA_BASE_URL` | Ollama server URL | `http://localhost:11434` |
+| `EMBEDDING_MODEL` | Embedding model name | `bge-m3` |
+| `OLLAMA_CHAT_MODEL` | Local chat model | `mistral-nemo` |
+| `DEEPSEEK_API_KEY` | Optional cloud model API key | empty by default |
+| `DEEPSEEK_BASE_URL` | OpenAI-compatible base URL | `https://api.deepseek.com/v1` |
+| `DEEPSEEK_MODEL` | Chat model name | `deepseek-chat` |
+
+See `.env.example` for a full template.
+
+## Web UI Workflow
+
+The Web interface is intended for everyday research use:
+
+1. Register/login with the configured auth code.
+2. Select or create a knowledge base.
+3. Upload documents or build the KB through scripts.
+4. Ask questions against a selected KB.
+5. Inspect cited sources and document fragments.
+6. Generate deep-reading reports for individual papers.
+7. Use the API/agent tools for automated literature-review workflows.
+
+## API Overview
+
+The detailed API reference lives in [`docs/backend_api.md`](docs/backend_api.md). The most commonly used endpoints are below.
+
+### Pure search: `POST /api/search`
+
+Search only; does not call an LLM.
+
+```bash
+curl -X POST http://localhost:10663/api/search \
+  -H "Authorization: Bearer $RAG_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "transformer architecture survey",
+    "kb": "papers",
+    "top_k": 8,
+    "min_score": 0.0,
+    "return_text": true,
+    "text_max_len": 500
+  }'
+```
+
+### RAG Q&A: `POST /api/ask`
+
+Retrieve relevant fragments and generate an answer.
+
+```bash
+curl -X POST http://localhost:10663/api/ask \
+  -H "Authorization: Bearer $RAG_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "这组论文主要解决了什么研究问题？",
+    "kb": "papers",
+    "top_k": 8,
+    "system_prompt": "你是一个专业的学术研究助手。请根据参考资料准确回答，并列出依据来源。",
+    "temperature": 0.3,
+    "max_tokens": 2048,
+    "return_sources": true
+  }'
+```
+
+### OpenAI-compatible chat: `POST /api/v1/chat/completions`
+
+Compatible with OpenAI Chat Completions clients.
+
+```python
+import openai
+
+client = openai.OpenAI(
+    api_key="your-auth-code",
+    base_url="http://localhost:10663/api/v1",
+)
+
+response = client.chat.completions.create(
+    model="mistral-nemo",
+    messages=[
+        {"role": "user", "content": "请总结 knowledge base 中的主要研究主题"}
+    ],
+    extra_body={"kb": "papers", "rag": True, "top_k": 8},
+)
+print(response.choices[0].message.content)
+```
+
+### Other useful endpoints
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/knowledge-bases` | GET | List all knowledge bases |
+| `/api/query` | POST | Legacy/frontend Q&A endpoint |
+| `/api/upload` | POST | Upload a document |
+| `/api/batch-upload` | POST | Batch upload documents |
+| `/api/documents/<kb>` | GET | List documents in a KB |
+| `/api/doc-detail/<kb>/<source>` | GET | Get document details |
+| `/api/deep-read` | POST | Generate or read a deep-reading report |
+
+## Agent Tools
+
+Set the server address and token:
 
 ```bash
 export RAG_API_BASE=http://localhost:10663
@@ -133,37 +333,141 @@ export RAG_TOKEN="$RAG_AUTH_CODE"
 export RAG_KB_NAME=papers
 ```
 
-示例：
+Examples:
 
 ```bash
+# Search document fragments
 python agent_tools/rag_search.py '{"query":"transformer architecture survey","kb":"papers","top_k":5}'
+
+# Ask a grounded research question
 python agent_tools/rag_ask.py '{"query":"请总结这些论文中的主要研究问题和方法","kb":"papers","top_k":8}'
+
+# List knowledge bases and documents
 python agent_tools/rag_list_kbs.py '{}'
 python agent_tools/rag_list_docs.py '{"kb":"papers"}'
+
+# Inspect a specific document
+python agent_tools/rag_doc_detail.py '{"kb":"papers","source":"paper-a.pdf"}'
+
+# Generate/read a deep-reading report
+python agent_tools/rag_deep_read.py '{"kb":"papers","source":"paper-a.pdf"}'
 ```
 
-## 适合的学术工作流
+These tools are useful when an autonomous agent needs grounded access to the same academic KB used by the Web UI.
 
-- **文献检索**：围绕研究问题快速查找相关片段和来源。
-- **论文精读**：对单篇论文生成结构化阅读报告，包括背景、方法、实验、贡献和局限。
-- **综述写作**：按主题聚合多篇论文证据，辅助形成 related work 和 research gap。
-- **组会/课程资料库**：将讲义、论文和技术报告整理成可问答知识库。
-- **跨领域调研**：为不同学科建立多个 KB，通过 `kb` 参数切换。
+## Academic Workflows
 
-## 安全注意事项
+### Literature review
 
-- 不要提交 `.env`、真实 API Key、认证码、JWT secret 或 Bearer token。
-- 不要提交 `user_data/`, `uploads/`, `chat_sessions/`, `deep_reads/`, `agent_sessions/`, `usage_stats.json`。
-- 不要提交知识库实体：`knowledge_bases/**/embeddings.json`, `segments.json`, `doc_details_cache.json`。
-- 不要提交未授权 PDF、内部资料、日志、缓存、`__pycache__`、`*.pyc`。
-- 生产部署请使用强随机 `RAG_AUTH_CODE`/`RAG_JWT_SECRET`，并配置 HTTPS、反向代理和访问控制。
+- Build one KB per research direction.
+- Ask for “main problems,” “methods,” “datasets,” “limitations,” and “future work.”
+- Require sources in the answer and verify final claims against the original papers.
 
-## 常见问题
+### Paper deep reading
 
-- `Unexpected token '<'`：前端收到 HTML 错误页而不是 JSON。检查 Flask 日志、API URL、认证 header、后端异常和 response content-type。
-- 检索为空：确认 `knowledge_bases/<KB>/segments.json` 与 `embeddings.json` 均存在且行数匹配。
-- DeepSeek 调用失败：确认 `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `DEEPSEEK_MODEL` 配置正确；否则会回退到 Ollama。
+- Use document detail and deep-read APIs for one paper at a time.
+- Extract background, motivation, method, experiments, contributions, limitations, and follow-up ideas.
+- Keep generated reports as drafts, not as authoritative summaries.
 
-## 许可证
+### Course or lab knowledge base
 
-本项目采用 Apache License 2.0 开源。该许可证允许商业使用、修改、分发和私有部署，并提供明确的专利授权条款。详见 `LICENSE`。
+- Ingest lecture notes, reading lists, lab documents, and technical reports.
+- Use the Web UI for interactive Q&A.
+- Use agent tools for recurring summaries or weekly literature digests.
+
+### Multi-domain research
+
+Create multiple KBs instead of mixing unrelated corpora:
+
+| Scenario | KB example | Example question |
+|---|---|---|
+| General papers | `papers` | “这些论文的共同研究问题是什么？” |
+| Clinical research | `clinical` | “这些临床试验的主要 endpoint 有何差异？” |
+| Economics | `economics` | “这些论文采用了哪些因果识别策略？” |
+| Course notes | `course-notes` | “请根据讲义解释这个概念并给出例子。” |
+| Software engineering | `software-engineering` | “这些论文如何评估软件质量？” |
+
+## Data, Privacy, and Open-Source Safety
+
+Generated KB files can contain copyrighted or private text fragments. Do not commit them unless you intentionally publish the corpus and have the right to do so.
+
+Do **not** commit:
+
+```text
+.env
+user_data/
+uploads/
+chat_sessions/
+deep_reads/
+agent_sessions/
+usage_stats.json
+knowledge_bases/**/embeddings.json
+knowledge_bases/**/segments.json
+knowledge_bases/**/doc_details_cache.json
+*.pdf
+*.log
+__pycache__/
+*.pyc
+```
+
+Before publishing a fork, scan for secrets and private paths:
+
+```bash
+grep -RInE 'sk-[A-Za-z0-9]{10,}|api[_-]?key|token|password|secret|Bearer ' . \
+  --exclude-dir=.git || true
+```
+
+## Troubleshooting
+
+### `Unexpected token '<'` in the browser
+
+The frontend expected JSON but received an HTML error page. Check:
+
+- Flask server logs;
+- API URL and port;
+- authentication header;
+- reverse-proxy configuration;
+- whether the backend raised an exception and returned an HTML traceback.
+
+### Search returns nothing
+
+Check that both files exist and correspond to the same KB:
+
+```bash
+test -f knowledge_bases/<KB>/segments.json
+test -f knowledge_bases/<KB>/embeddings.json
+```
+
+Also verify that Ollama is running and that the embedding model matches the one used during indexing.
+
+### DeepSeek/OpenAI-compatible calls fail
+
+Verify:
+
+```bash
+echo "$DEEPSEEK_API_KEY"
+echo "$DEEPSEEK_BASE_URL"
+echo "$DEEPSEEK_MODEL"
+```
+
+If no cloud API key is configured, use Ollama/local models where supported.
+
+### Port already in use
+
+```bash
+lsof -i :10663
+# or choose another port
+export RAG_PORT=18080
+python rag_web_server.py
+```
+
+## Documentation
+
+- [Technical Guide](docs/TECHNICAL_GUIDE.md): architecture, KB layout, and technical notes.
+- [Backend API](docs/backend_api.md): endpoint details and request examples.
+- [User Manual](docs/manual.md): longer UI and operational manual.
+- [Sample KB Notes](examples/sample_kb/README.md): how to create a minimal demo KB.
+
+## License
+
+Academic RAG is released under the Apache License 2.0. You may use, modify, distribute, and deploy it commercially or privately, subject to the license terms. See [`LICENSE`](LICENSE).
