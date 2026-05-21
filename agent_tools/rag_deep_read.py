@@ -10,7 +10,7 @@ MAX_WAIT = 600          # 10 minutes max wait
 def main():
     args = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
     source = args.get("source", "")
-    kb = args.get("kb", "RVD")
+    kb = args.get("kb", os.environ.get("RAG_KB_NAME", "papers"))
     token = args.get("token") or os.environ.get("RAG_TOKEN") or os.environ.get("RAG_AUTH_CODE", "change-me")
 
     if not source:

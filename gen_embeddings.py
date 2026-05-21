@@ -3,7 +3,7 @@
 import json, os, requests, sys, time
 
 BASE_DIR = os.path.abspath(os.getenv("RAG_BASE_DIR", os.path.dirname(__file__)))
-KB_NAME = os.getenv("RAG_KB_NAME", "RVD")
+KB_NAME = os.getenv("RAG_KB_NAME", "papers")
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 MODEL = os.getenv("EMBEDDING_MODEL", "bge-m3")
 segments_file = sys.argv[1] if len(sys.argv) > 1 else os.path.join(BASE_DIR, "knowledge_bases", KB_NAME, "segments.json")

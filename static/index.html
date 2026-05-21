@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RecurringVul RAG 知识库管理系统</title>
+    <title>Academic RAG 知识库管理系统</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -333,8 +333,8 @@
 <body>
     <!-- 登录 -->
     <div id="loginPage">
-        <h1>🔐 RAG 知识库管理</h1>
-        <p class="subtitle">RecurringVul Knowledge Base System</p>
+        <h1>📚 Academic RAG 知识库管理</h1>
+        <p class="subtitle">Academic Research Knowledge Base System</p>
         
         <!-- Login/Register Tabs -->
         <div class="login-tabs">
@@ -441,7 +441,7 @@
                         <div class="card">
                             <h3>输入问题</h3>
                             <div class="form-group">
-                                <textarea id="queryInput" placeholder="例如：什么是二进制代码相似性检测？UAF漏洞的原理是什么？"></textarea>
+                                <textarea id="queryInput" placeholder="例如：这篇论文的主要贡献是什么？这些文献的方法差异是什么？"></textarea>
                             </div>
                             <button class="btn-primary" id="queryBtn" onclick="executeQuery()">🔍 开始查询</button>
                         </div>
@@ -749,9 +749,9 @@ POST /api/delete-kb           # admin
 POST /api/rename-kb           # admin
 POST /api/upload              # admin, multipart
 POST /api/batch-upload        # admin, multipart/zip
-GET  /api/kb-documents?kb=RVD
-GET  /api/kb-document-detail?kb=RVD&amp;source=xxx.pdf
-GET  /api/tags?kb=RVD
+GET  /api/kb-documents?kb=papers
+GET  /api/kb-document-detail?kb=papers&amp;source=xxx.pdf
+GET  /api/tags?kb=papers
 PUT  /api/tags
 POST /api/prefetch            # admin
 GET  /api/prefetch
@@ -804,13 +804,13 @@ POST /api/admin/usage-stats/reset        # admin</code></pre>
                             <pre><code>curl -X POST http://localhost:10663/api/search \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"kb":"RVD","query":"VulHawk","top_k":5}'</code></pre>
+  -d '{"kb":"papers","query":"transformer architecture survey","top_k":5}'</code></pre>
 
                             <pre><code>from openai import OpenAI
 client = OpenAI(api_key="YOUR_TOKEN", base_url="http://localhost:10663/api/v1")
 resp = client.chat.completions.create(
     model="deepseek-chat",
-    messages=[{"role":"user","content":"什么是二进制代码相似性检测？"}],
+    messages=[{"role":"user","content":"请总结这些论文的主要研究主题"}],
 )
 print(resp.choices[0].message.content)</code></pre>
 
@@ -1029,7 +1029,7 @@ print(resp.choices[0].message.content)</code></pre>
                                     <div class="docmod-messages" id="docmodMessages"></div>
                                     <div class="docmod-input-bar">
                                         <select id="docmodKbSelect">
-                                            <option value="RVD">RVD</option>
+                                            <option value="papers">papers</option>
                                         </select>
                                         <input id="docmodInput" placeholder="输入修改需求..." onkeydown="if(event.key==='Enter')sendDocModMessage()">
                                         <button class="btn-primary" id="docmodSendBtn" onclick="sendDocModMessage()">发送</button>
@@ -1991,7 +1991,7 @@ ${prevSections ? '已生成的前序章节：\n' + prevSections : ''}
                 const sendResp = await fetch(API + '/api/agent/chat', {
                     method: 'POST',
                     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: '', message: agentPrompt, kb: 'RVD' })
+                    body: JSON.stringify({ session_id: '', message: agentPrompt, kb: 'papers' })
                 });
                 const sendData = await sendResp.json();
                 if (!sendData.success) {
@@ -2093,7 +2093,7 @@ ${prevText ? '已生成的前序章节：\n' + prevText : ''}
                     fetch(API + '/api/agent/chat', {
                         method: 'POST',
                         headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ session_id: '', message: prompt, kb: 'RVD' })
+                        body: JSON.stringify({ session_id: '', message: prompt, kb: 'papers' })
                     }).then(r => r.json()).then(sendData => {
                         if (!sendData.success) { reject(new Error(sendData.error || '启动失败')); return; }
                         let fullText = '';
@@ -3663,7 +3663,7 @@ ${prevText ? '已生成的前序章节：\n' + prevText : ''}
                 await fetch(API + '/api/agent/sessions', {
                     method: 'POST',
                     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: currentAgentSessionId, title: title, messages: messages, kb: data.kb || 'RVD' })
+                    body: JSON.stringify({ id: currentAgentSessionId, title: title, messages: messages, kb: data.kb || 'papers' })
                 });
                 loadAgentSessions();
             } catch(e) {
@@ -3933,7 +3933,7 @@ ${prevText ? '已生成的前序章节：\n' + prevText : ''}
                         });
                         if (!sel.options.length) {
                             const opt = document.createElement('option');
-                            opt.value = 'RVD'; opt.textContent = 'RVD';
+                            opt.value = 'papers'; opt.textContent = 'papers';
                             sel.appendChild(opt);
                         }
                     }).catch(() => {});

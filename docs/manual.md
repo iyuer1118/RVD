@@ -35,7 +35,7 @@
 1. 在登录页点击"注册"
 2. 填写用户名（2-32 位，支持字母/数字/下划线/中文）
 3. 填写密码（至少 4 位）
-4. 输入安全码（由管理员提供，即系统配置的 `auth_code`）
+4. 输入认证码（由管理员提供，即系统配置的 `auth_code`）
 5. 注册成功后自动登录
 
 ### 2.3 基本工作流
@@ -221,7 +221,7 @@ user_data/
 
 | 方法 | 路径 | 权限 | 参数 | 说明 |
 |------|------|------|------|------|
-| POST | `/api/register` | 无 | `username`, `password`, `security_code` | 注册新用户，需安全码 |
+| POST | `/api/register` | 无 | `username`, `password`, `security_code` | 注册新用户，需认证码 |
 | POST | `/api/login` | 无 | `username`, `password` | 登录，返回 JWT token |
 | GET | `/api/me` | 登录 | — | 获取当前用户信息（username, role, display_name） |
 | PUT | `/api/change-password` | 登录 | `old_password`, `new_password` | 修改密码 |
@@ -305,7 +305,7 @@ user_data/
 | GET | `/api/deep-read/<report_id>/export` | api_key | query: `api_key` | 对外导出接口（通过 api_key 认证） |
 | GET | `/api/deep-reads/export` | api_key | query: `api_key` | 对外导出所有报告列表（不含正文） |
 
-**report_id 生成规则**：取 `source` 文件名中第一个 `_` 之前的部分。例如 `074_VulHawk_...pdf` 的 report_id 为 `074`。
+**report_id 生成规则**：取 `source` 文件名中第一个 `_` 之前的部分。例如 `paper-a.pdf` 的 report_id 为 `074`。
 
 **状态说明**：
 - `started`：任务已启动
@@ -436,7 +436,7 @@ journalctl -u rag-server -f        # 查看日志
 | `deepseek_api_key` | — | DeepSeek API 密钥 |
 | `deepseek_model` | `deepseek-chat` | DeepSeek 模型名 |
 | `deepseek_base_url` | `https://api.deepseek.com/v1` | DeepSeek API 地址 |
-| `auth_code` | — | 安全码（注册用），也作为旧版 Bearer Token |
+| `auth_code` | — | 认证码（注册用），也作为旧版 Bearer Token |
 | `export_api_key` | `None` | 精读报告对外导出的 API Key（None 时使用 auth_code） |
 
 ### 7.5 常见故障排查
@@ -507,8 +507,8 @@ curl -X POST http://localhost:10663/api/v1/chat/completions \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [{"role": "user", "content": "什么是二进制代码相似性检测？"}],
-    "kb": "RVD",
+    "messages": [{"role": "user", "content": "请总结这些论文的主要研究主题"}],
+    "kb": "papers",
     "rag": true,
     "stream": false
   }'
@@ -526,7 +526,7 @@ client = openai.OpenAI(
 
 response = client.chat.completions.create(
     model="deepseek-chat",
-    messages=[{"role": "user", "content": "什么是二进制代码相似性检测？"}]
+    messages=[{"role": "user", "content": "请总结这些论文的主要研究主题"}]
 )
 print(response.choices[0].message.content)
 ```
@@ -555,22 +555,22 @@ Agent 工具位于 `agent_tools/` 目录，可独立于 Web 服务使用：
 
 ```bash
 # 纯检索
-python agent_tools/rag_search.py '{"query":"VulHawk","kb":"RVD","top_k":10}'
+python agent_tools/rag_search.py '{"query":"attention mechanism","kb":"papers","top_k":10}'
 
 # RAG 问答
-python agent_tools/rag_ask.py '{"query":"VulHawk用了什么方法？","kb":"RVD","top_k":8}'
+python agent_tools/rag_ask.py '{"query":"请总结这些论文的方法差异","kb":"papers","top_k":8}'
 
 # 列出知识库
 python agent_tools/rag_list_kbs.py '{}'
 
 # 列出知识库文档
-python agent_tools/rag_list_docs.py '{"kb":"RVD"}'
+python agent_tools/rag_list_docs.py '{"kb":"papers"}'
 
 # 文档详情
-python agent_tools/rag_doc_detail.py '{"kb":"RVD","source":"074_VulHawk_...pdf"}'
+python agent_tools/rag_doc_detail.py '{"kb":"papers","source":"paper-a.pdf"}'
 
 # 精读报告
-python agent_tools/rag_deep_read.py '{"source":"074_VulHawk_...pdf","kb":"RVD"}'
+python agent_tools/rag_deep_read.py '{"source":"paper-a.pdf","kb":"papers"}'
 ```
 
 ### 8.4 精读报告对外导出示例

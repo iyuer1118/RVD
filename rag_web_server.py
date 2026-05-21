@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RecurringVul RAG Web Backend v2 - Hybrid Search"""
+"""Academic RAG Web Backend - Hybrid Search"""
 
 import os, sys, json, uuid, shutil, requests, math, re, logging, threading, atexit
 import hashlib, base64, hmac, time as _time
@@ -453,7 +453,7 @@ def query():
     """[DEPRECATED] 普通查询模式 — 前端已改用 Agent 模式。保留作为兼容。"""
     data = request.get_json()
     query_text = data.get('query', '')
-    kb_name = data.get('kb', 'RVD')
+    kb_name = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     top_k = data.get('top_k', 8)
     if not query_text.strip():
         return jsonify({'error': 'Empty query'}), 400
@@ -517,7 +517,7 @@ def chat():
     """Multi-turn RAG chat. Accepts messages history, returns streaming response.
     Body: {kb, messages: [{role,content}], model?, base_url?, api_key?}"""
     data = request.get_json()
-    kb_name = data.get('kb', 'RVD')
+    kb_name = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     messages = data.get('messages', [])
     top_k = data.get('top_k', 8)
 
@@ -767,7 +767,7 @@ def list_chat_sessions():
                     sessions.append({
                         'id': data.get('id', fn[:-5]),
                         'title': data.get('title', fn[:-5]),
-                        'kb': data.get('kb', 'RVD'),
+                        'kb': data.get('kb', os.getenv('RAG_KB_NAME', 'papers')),
                         'message_count': len(data.get('messages', [])),
                         'updated_at': data.get('updated_at', ''),
                         'created_at': data.get('created_at', ''),
@@ -795,7 +795,7 @@ def save_chat_session():
     data = request.get_json()
     session_id = (data.get('id') or '').strip() or str(uuid.uuid4())
     messages = data.get('messages', [])
-    kb = data.get('kb') or 'RVD'
+    kb = data.get('kb') or os.getenv('RAG_KB_NAME', 'papers')
     title = (data.get('title') or '').strip()
     if title in ('新对话', 'new_chat', 'untitled'):
         title = ''
@@ -842,7 +842,7 @@ def delete_chat_session(session_id):
 @app.route('/api/upload', methods=['POST'])
 @require_auth(roles=['admin'])
 def upload_document():
-    kb_name = request.form.get('kb', 'RVD')
+    kb_name = request.form.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     if 'file' not in request.files:
         return jsonify({'error': 'No file'}), 400
     file = request.files['file']
@@ -915,7 +915,7 @@ def upload_document():
 def batch_upload():
     """Batch upload: accepts multiple files or a zip archive.
     Returns streaming JSON progress (one JSON object per file processed)."""
-    kb_name = request.form.get('kb', 'RVD')
+    kb_name = request.form.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     files = request.files.getlist('files')
     if not files or all(f.filename == '' for f in files):
         return jsonify({'error': 'No files provided'}), 400
@@ -1541,7 +1541,7 @@ def prefetch_details():
     """Start background prefetch of all uncached document details."""
     global _prefetch_state
     data = request.get_json() or {}
-    kb_name = data.get('kb', 'RVD')
+    kb_name = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
 
     if _prefetch_state['running']:
         return jsonify({'running': True, 'progress': _prefetch_state['progress'],
@@ -1581,7 +1581,7 @@ def backend_search():
     """Pure retrieval — returns matched segments without calling LLM. Fast (sub-second)."""
     data = request.get_json() or {}
     query_text = data.get('query', '')
-    kb_name = data.get('kb', 'RVD')
+    kb_name = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     top_k = data.get('top_k', 8)
     min_score = data.get('min_score', 0.0)
     return_text = data.get('return_text', True)   # whether to include segment text
@@ -1647,7 +1647,7 @@ def backend_ask():
     """Full RAG Q&A — retrieves relevant segments, then calls LLM to generate answer."""
     data = request.get_json() or {}
     query_text = data.get('query', '')
-    kb_name = data.get('kb', 'RVD')
+    kb_name = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     top_k = data.get('top_k', 8)
     system_prompt = data.get('system_prompt', '你是一个专业的学术研究助手。请根据提供的参考资料准确回答问题，使用简体中文。')
     temperature = data.get('temperature', 0.3)
@@ -1744,7 +1744,7 @@ def openai_compatible():
     """
     data = request.get_json() or {}
     messages = data.get('messages', [])
-    kb_name = data.get('kb', 'RVD')
+    kb_name = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     top_k = data.get('top_k', 8)
     temperature = data.get('temperature', 0.3)
     max_tokens = data.get('max_tokens', 2048)
@@ -2338,7 +2338,7 @@ def agent_list_sessions():
             sessions.append({
                 "id": data.get("id", ""),
                 "title": data.get("title", "新 Agent 会话"),
-                "kb": data.get("kb", "RVD"),
+                "kb": data.get("kb", os.getenv("RAG_KB_NAME", "papers")),
                 "status": runtime_status,
                 "message_count": len(data.get("messages", [])),
                 "created_at": data.get("created_at", ""),
@@ -2355,7 +2355,7 @@ def agent_create_session():
     """Create a new agent session."""
     data = request.get_json(force=True)
     session_id = data.get("id") or str(_uuid.uuid4())
-    kb = data.get("kb", "RVD")
+    kb = data.get("kb", os.getenv("RAG_KB_NAME", "papers"))
     title = data.get("title", "新 Agent 会话")
 
     session_file = os.path.join(_user_agent_dir(), f"{session_id}.json")
@@ -2480,7 +2480,7 @@ def agent_chat_send():
     username = getattr(g, 'user', 'admin')
     session_id = data.get("session_id", "")
     message = data.get("message", "").strip()
-    kb = data.get("kb", "RVD")
+    kb = data.get("kb", os.getenv("RAG_KB_NAME", "papers"))
 
     if not message:
         return jsonify({"error": "message is required"}), 400
@@ -2741,7 +2741,7 @@ def start_deep_read():
     """Start a deep read report generation task."""
     data = request.get_json(force=True)
     source = data.get("source", "")
-    kb = data.get("kb", "RVD")
+    kb = data.get("kb", os.getenv("RAG_KB_NAME", "papers"))
 
     if not source:
         return jsonify({"error": "source is required"}), 400
@@ -3038,7 +3038,7 @@ def create_paper():
     # Support importing from agent session
     agent_session_id = data.get('agent_session_id')
     guide_messages = [
-        {'role': 'assistant', 'content': f'你好！我来帮你撰写论文「{title}」。首先，请告诉我这篇论文的研究领域是什么？比如：二进制分析、漏洞检测、自然语言处理等。'}
+        {'role': 'assistant', 'content': f'你好！我来帮你撰写论文「{title}」。首先，请告诉我这篇论文的研究领域是什么？比如：计算机科学、医学、社会科学、经济学、教育学、自然语言处理等。'}
     ]
     if agent_session_id:
         session_file = os.path.join(_user_agent_dir(), f'{agent_session_id}.json')
@@ -3505,7 +3505,7 @@ def docmod_chat(doc_id):
 
     data = request.get_json(force=True)
     message = (data.get('message') or '').strip()
-    kb = data.get('kb', 'RVD')
+    kb = data.get('kb', os.getenv('RAG_KB_NAME', 'papers'))
     if not message:
         return jsonify({'error': '消息不能为空'}), 400
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-分析 RVD segments.json 中的重复文档情况。
+分析知识库 segments.json 中的重复文档情况。
 """
 import json
 import os
 from collections import defaultdict
 from difflib import SequenceMatcher
 
-SEGS_PATH = os.getenv("RAG_SEGMENTS_PATH", os.path.join(os.path.dirname(__file__), "knowledge_bases", "RVD", "segments.json"))
+SEGS_PATH = os.getenv("RAG_SEGMENTS_PATH", os.path.join(os.path.dirname(__file__), "knowledge_bases", os.getenv("RAG_KB_NAME", "papers"), "segments.json"))
 
 # ── 1. 加载数据 ──────────────────────────────────────────────
 segments = []
@@ -283,7 +283,7 @@ for g in group_list:
             group_data["pair_details"].append(pair)
     output["groups"].append(group_data)
 
-output_path = "knowledge_bases/RVD/duplicate_analysis.json"
+output_path = "knowledge_bases/papers/duplicate_analysis.json"
 with open(output_path, "w", encoding="utf-8") as f:
     json.dump(output, f, ensure_ascii=False, indent=2)
 print(f"详细分析结果已保存到: {output_path}")

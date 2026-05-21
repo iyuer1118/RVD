@@ -1,21 +1,22 @@
-# RAG Backend API 文档
+# Academic RAG Backend API 文档
 
-> 服务地址：`http://localhost:10663`
-> 认证方式：`Authorization: Bearer change-me`
+> 服务地址：`http://localhost:10663`  
+> 认证方式：`Authorization: Bearer <RAG_TOKEN>`  
+> 默认示例知识库：`papers`
 
 ---
 
 ## 一、纯检索 `/api/search`
 
-**不调用 LLM**，只返回相关文档片段。响应速度最快（~7秒，主要是 embedding 计算）。
+**不调用 LLM**，只返回相关文档片段。适合快速查找论文、教材、技术报告中的证据片段。
 
 ```bash
 curl -X POST http://localhost:10663/api/search \
-  -H "Authorization: Bearer change-me" \
+  -H "Authorization: Bearer $RAG_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "VulHawk binary similarity",
-    "kb": "RVD",
+    "query": "transformer architecture survey",
+    "kb": "papers",
     "top_k": 8,
     "min_score": 0.0,
     "return_text": true,
@@ -28,24 +29,24 @@ curl -X POST http://localhost:10663/api/search \
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | query | string | 必填 | 检索文本 |
-| kb | string | "RVD" | 知识库名称 |
+| kb | string | `papers` | 知识库名称 |
 | top_k | int | 8 | 返回最大结果数 |
 | min_score | float | 0.0 | 最低相关度阈值（0-1） |
 | return_text | bool | true | 是否返回文档片段文本 |
 | text_max_len | int | 500 | 文本截断长度 |
 
 **返回示例：**
+
 ```json
 {
-  "query": "VulHawk binary similarity",
-  "rewritten_query": "VulHawk binary similarity",
-  "kb": "RVD",
+  "query": "transformer architecture survey",
+  "rewritten_query": "transformer architecture survey",
+  "kb": "papers",
   "total": 3,
   "results": [
-    {"score": 0.691, "source": "074_VulHawk...NDSS_2023.pdf", "text": "..."},
-    ...
+    {"score": 0.691, "source": "attention-is-all-you-need.pdf", "text": "..."}
   ],
-  "sources": ["074_VulHawk...pdf"],
+  "sources": ["attention-is-all-you-need.pdf"],
   "timestamp": "2026-05-11T..."
 }
 ```
@@ -54,17 +55,17 @@ curl -X POST http://localhost:10663/api/search \
 
 ## 二、完整问答 `/api/ask`
 
-检索 + LLM 生成答案。可自定义 system prompt 和温度等参数。
+检索 + LLM 生成答案。可自定义 system prompt 和温度等参数，适合论文问答、综述整理和研究资料分析。
 
 ```bash
 curl -X POST http://localhost:10663/api/ask \
-  -H "Authorization: Bearer change-me" \
+  -H "Authorization: Bearer $RAG_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "VulHawk用了什么方法做跨架构漏洞检测？",
-    "kb": "RVD",
+    "query": "这组论文主要解决了什么研究问题？",
+    "kb": "papers",
     "top_k": 8,
-    "system_prompt": "你是一个专业的学术研究助手。请根据提供的参考资料准确回答问题，使用简体中文。",
+    "system_prompt": "你是一个专业的学术研究助手。请根据提供的参考资料准确回答问题，使用简体中文，并列出依据来源。",
     "temperature": 0.3,
     "max_tokens": 2048,
     "return_sources": true,
@@ -77,26 +78,26 @@ curl -X POST http://localhost:10663/api/ask \
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | query | string | 必填 | 问题文本 |
-| kb | string | "RVD" | 知识库名称 |
+| kb | string | `papers` | 知识库名称 |
 | top_k | int | 8 | 检索文档数 |
-| system_prompt | string | (学术助手) | 自定义系统提示词 |
+| system_prompt | string | 学术助手 | 自定义系统提示词 |
 | temperature | float | 0.3 | LLM 温度 |
 | max_tokens | int | 2048 | 最大生成 token 数 |
 | return_sources | bool | true | 返回来源文档信息 |
 | return_context | bool | false | 返回原始检索片段 |
 
 **返回示例：**
+
 ```json
 {
-  "answer": "VulHawk使用基于熵的二进制代码搜索方法...",
-  "query": "VulHawk用了什么方法做跨架构漏洞检测？",
-  "rewritten_query": "VulHawk跨架构漏洞检测",
-  "kb": "RVD",
+  "answer": "这些论文主要围绕长上下文建模、注意力效率和表示学习展开...",
+  "query": "这组论文主要解决了什么研究问题？",
+  "rewritten_query": "papers research problems methods summary",
+  "kb": "papers",
   "sources": [
-    {"source": "074_VulHawk...pdf", "score": 0.691},
-    ...
+    {"source": "paper-a.pdf", "score": 0.691}
   ],
-  "unique_sources": ["074_VulHawk...pdf", "007_重现型...pdf"],
+  "unique_sources": ["paper-a.pdf", "paper-b.pdf"],
   "timestamp": "2026-05-11T..."
 }
 ```
@@ -105,18 +106,18 @@ curl -X POST http://localhost:10663/api/ask \
 
 ## 三、OpenAI 兼容 `/api/v1/chat/completions`
 
-兼容 OpenAI Chat Completions API 格式，可直接对接 LangChain、LlamaIndex 等工具。
+兼容 OpenAI Chat Completions API 格式，可直接对接 LangChain、LlamaIndex、OpenAI SDK 等工具。
 
 ```bash
 curl -X POST http://localhost:10663/api/v1/chat/completions \
-  -H "Authorization: Bearer change-me" \
+  -H "Authorization: Bearer $RAG_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
-      {"role": "system", "content": "你是一个安全研究助手"},
-      {"role": "user", "content": "BinDiff和VulHawk的区别是什么？"}
+      {"role": "system", "content": "你是一个学术研究助手"},
+      {"role": "user", "content": "请比较这些论文的方法差异"}
     ],
-    "kb": "RVD",
+    "kb": "papers",
     "top_k": 8,
     "temperature": 0.3,
     "max_tokens": 2048,
@@ -129,13 +130,14 @@ curl -X POST http://localhost:10663/api/v1/chat/completions \
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | messages | array | 必填 | OpenAI 格式消息列表 |
-| kb | string | "RVD" | 知识库名称 |
+| kb | string | `papers` | 知识库名称 |
 | top_k | int | 8 | 检索文档数 |
 | temperature | float | 0.3 | LLM 温度 |
 | max_tokens | int | 2048 | 最大生成 token 数 |
 | rag | bool | true | 是否启用 RAG 检索增强（false=纯对话） |
 
 **Python 对接示例：**
+
 ```python
 import openai
 
@@ -147,26 +149,10 @@ client = openai.OpenAI(
 response = client.chat.completions.create(
     model="mistral-nemo",
     messages=[
-        {"role": "user", "content": "什么是二进制代码相似性检测？"}
+        {"role": "user", "content": "请总结 knowledge base 中的主要研究主题"}
     ]
 )
 print(response.choices[0].message.content)
-```
-
-**返回示例：**
-```json
-{
-  "id": "chatcmpl-7242430aa635",
-  "object": "chat.completion",
-  "created": 1746980400,
-  "model": "mistral-nemo",
-  "choices": [{
-    "index": 0,
-    "message": {"role": "assistant", "content": "根据参考资料..."},
-    "finish_reason": "stop"
-  }],
-  "usage": {"prompt_tokens": -1, "completion_tokens": -1, "total_tokens": -1}
-}
 ```
 
 ---
@@ -178,20 +164,14 @@ print(response.choices[0].message.content)
 | `/api/knowledge-bases` | GET | 列出所有知识库 |
 | `/api/query` | POST | 前端 UI 问答（旧接口） |
 | `/api/upload` | POST | 上传文档 |
-| `/api/create` | POST | 创建知识库 |
-| `/api/delete-kb` | POST | 删除知识库 |
-| `/api/rename-kb` | POST | 重命名知识库 |
-| `/api/kb-documents` | GET | 查看知识库文档列表 |
-| `/api/kb-document-detail` | GET | 查看文档详情（带缓存） |
-| `/api/status` | GET | 服务状态 |
+| `/api/batch-upload` | POST | 批量上传文档 |
+| `/api/documents/<kb>` | GET | 列出知识库文档 |
+| `/api/doc-detail/<kb>/<source>` | GET | 获取文档详情 |
+| `/api/deep-read` | POST | 生成/读取论文精读报告 |
 
----
+## 五、推荐学术使用方式
 
-## 五、响应时间参考
-
-| 接口 | 首次 | 缓存命中 |
-|------|------|----------|
-| `/api/search` | ~7s | ~7s（无 LLM 缓存） |
-| `/api/ask` | ~12s | — |
-| `/api/v1/chat/completions` | ~24s | — |
-| `/api/kb-document-detail` | ~10s | **~0.05s** |
+- 每个研究方向一个 KB，例如 `papers`、`biology`、`economics`、`course-notes`。
+- 上传前确认文档版权和隐私边界。
+- 对综述类问题开启 `return_sources=true`，便于检查引用依据。
+- 对自动生成的回答进行人工核验，不要直接替代正式文献阅读。

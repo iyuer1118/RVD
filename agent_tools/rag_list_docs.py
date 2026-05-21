@@ -6,7 +6,7 @@ API_BASE = os.environ.get("RAG_API_BASE", "http://localhost:10663")
 
 def main():
     args = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
-    kb = args.get("kb", "RVD")
+    kb = args.get("kb", os.environ.get("RAG_KB_NAME", "papers"))
     token = args.get("token") or os.environ.get("RAG_TOKEN") or os.environ.get("RAG_AUTH_CODE", "change-me")
     try:
         resp = requests.get(f"{API_BASE}/api/kb-documents",

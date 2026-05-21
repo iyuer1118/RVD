@@ -13,7 +13,7 @@ import argparse
 
 # === Config ===
 BASE_DIR = os.path.abspath(os.getenv("RAG_BASE_DIR", os.path.dirname(os.path.dirname(__file__))))
-KB_NAME = os.getenv("RAG_KB_NAME", "RVD")
+KB_NAME = os.getenv("RAG_KB_NAME", "papers")
 CACHE_PATH = os.getenv("RAG_DOC_DETAILS_CACHE", os.path.join(BASE_DIR, "knowledge_bases", KB_NAME, "doc_details_cache.json"))
 PROGRESS_FILE = os.getenv("RAG_KEYWORD_PROGRESS", os.path.join(BASE_DIR, "knowledge_bases", KB_NAME, "keyword_recalibration_progress.json"))
 

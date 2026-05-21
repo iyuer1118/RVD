@@ -7,7 +7,7 @@ API_BASE = os.environ.get("RAG_API_BASE", "http://localhost:10663")
 def main():
     args = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
     query = args.get("query", "")
-    kb = args.get("kb", "RVD")
+    kb = args.get("kb", os.environ.get("RAG_KB_NAME", "papers"))
     top_k = args.get("top_k", 10)
     min_score = args.get("min_score", 0.1)
     

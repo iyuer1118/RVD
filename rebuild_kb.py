@@ -86,7 +86,7 @@ def split_text(text, max_length=800, overlap=150):
 
 def main():
     base_dir = os.path.abspath(os.getenv("RAG_BASE_DIR", os.path.dirname(__file__)))
-    kb_name = os.getenv("RAG_KB_NAME", "RVD")
+    kb_name = os.getenv("RAG_KB_NAME", "papers")
     ref_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(base_dir, "reference")
     output_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(base_dir, "knowledge_bases", kb_name)
     
@@ -127,8 +127,8 @@ def main():
     
     # 保存metadata
     meta = {
-        'name': 'ollama_bge_m3',
-        'description': 'RecurringVul 二进制代码相似性检测相关论文和文档（重建版）',
+        'name': kb_name,
+        'description': f'Academic RAG knowledge base: {kb_name}',
         'model': 'bge-m3',
         'created': '2026-05-11',
         'segments': len(all_segments)
